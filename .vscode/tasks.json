@@ -1,0 +1,39 @@
+{
+    "version": "2.0.0", // 配置文件版本，固定为1.0.0
+    "tasks": [
+        {
+            "type": "shell",
+            "label": "build main",
+            "command": "g++",
+            "args": [
+                "-g",
+                "${workspaceFolder}/src/viewer.cpp",
+                "${workspaceFolder}/src/main.cpp",
+                "-o",
+                "${workspaceFolder}/build/main.exe",
+                "-IF:\\msys2\\mingw64\\include",
+                "-LF:\\msys2\\mingw64\\lib",
+                "-lcurl",
+                "-lcjson"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "detail": "编译开发"
+        },
+        {
+            "type": "shell",
+            "label": "run main",
+            "command": "${workspaceFolder}/build/main.exe",
+            "dependsOn": [
+                "build main"
+            ],
+            "group": "build",
+            "detail": "运行 main 程序"
+        }
+    ]
+}
