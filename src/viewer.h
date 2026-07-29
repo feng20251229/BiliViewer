@@ -18,4 +18,11 @@ typedef struct {
 
 int getBiliHistory(std::vector<BiliRecord>& records);
 
+// 根据时间范围过滤记录
+std::vector<BiliRecord> filterRecordsByDate(
+    const std::vector<BiliRecord>& records,
+    const std::string& startDate,
+    const std::string& endDate
+);
+
 #endif
