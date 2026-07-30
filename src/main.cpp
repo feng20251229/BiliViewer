@@ -37,18 +37,18 @@ int main()
 {
     std::vector<BiliRecord> selectRecords;
     // 通过网站访问获取历史记录
-    getRecordsFromWeb();
+    //getRecordsFromWeb();
     // 通过储存数据获取历史记录
-    //getRecordsFromData();
+    getRecordsFromData();
     
     /*std::string startDate = "2026-07-01";
     std::string endDate = "2026-07-29";
     // 根据时间段返回在内的历史记录
     selectRecords = selectRecordsFromDate(startDate, endDate);*/
     // 返回观看率
-    //analyzeCompletionRate(myRecords);
+    analyzeCompletionRate(myRecords);
     /// 返回所有出现的tag
-    //getTag();
+    getTag();
 
     return 0;
 } 
