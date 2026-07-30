@@ -1,9 +1,10 @@
-#ifndef VIEWER_H
-#define VIEWER_H
+#ifndef CONNECT_H
+#define CONNECT_H
 
 #include <iostream>
 #include <cstddef>
 #include <vector>
+#include <unordered_set>
 
 typedef struct {
     std::string title;          // 视频标题
@@ -18,11 +19,6 @@ typedef struct {
 
 int getBiliHistory(std::vector<BiliRecord>& records);
 
-// 根据时间范围过滤记录
-std::vector<BiliRecord> filterRecordsByDate(
-    const std::vector<BiliRecord>& records,
-    const std::string& startDate,
-    const std::string& endDate
-);
+void loadRecordsFromFile(const std::string& filename, std::vector<BiliRecord>& records);
 
 #endif

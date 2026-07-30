@@ -1,15 +1,15 @@
-#include "viewer.h"
+#include "connect.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <chrono>
-#include <ctime>
-#include <iomanip>
 #include <cjson/cjson.h>
 #include <curl/curl.h>
 #include <fstream>
 #include <sstream>
 #include <vector>
+#include <algorithm>
+
+std::unordered_set<std::string> seenKeys;
 
 // 用于存储API响应数据的结构
 struct MemoryStruct {
@@ -26,27 +26,23 @@ static std::string readFileToString(const std::string& filename) {
     return ss.str();
 }
 
-// 将Unix时间戳转换为 "YYYY-MM-DD" 格式的字符串
-static std::string timestampToDate(long timestamp) {
-    using namespace std::chrono;
-    // 将时间戳转化为时间点
-    system_clock::time_point tp = system_clock::from_time_t(timestamp);
-    // 转换为本地时间
-    std::time_t tt = system_clock::to_time_t(tp);
-    std::tm local_tm = *std::localtime(&tt);
-    // 格式化为字符串
-    std::ostringstream oss;
-    oss << std::put_time(&local_tm, "%Y-%m-%d");
-    return oss.str();
-}
+static void saveRecordsToFile(const std::vector<BiliRecord> &records, const std::string &filename) {
+    std::ofstream file(filename);
+    if (!file.is_open()) return;
 
-// 将"YYYY-MM-DD" 格式的字符串转换为时间戳
-static long dateToTimestamp(const std::string& dataStr) {
-    std::tm tm = {};
-    std::istringstream ss(dataStr);
-    ss >> std::get_time(&tm, "%Y-%m-%d");
-    std::time_t tt = std::mktime(&tm);
-    return static_cast<long>(tt);
+    for (const auto& rec : records) {
+        std::string safeTitle = rec.title;
+        std::replace(safeTitle.begin(), safeTitle.end(), '|', ';');
+        std::string safeTag = rec.tag;
+        std::replace(safeTag.begin(), safeTag.end(), '|', ';');    
+        file << rec.view_timestamp << "|"
+             << safeTitle << "|"
+             << (rec.tag.empty() ? "未分类" : safeTag) << "|"
+             << (rec.bvid.empty() ? "N/A" : rec.bvid) << "|"
+             << rec.business << "|"
+             << rec.progress << "|"
+             << rec.duration << "\n";
+    }
 }
 
 // 从API获取数据的回调函数, 追加到MemoryStruct缓冲区
@@ -129,6 +125,14 @@ static int getBiliRecord(long &max, long &view_at, const std::string& jsonData, 
             record.view_timestamp = view_at->valueint;
         }
         
+        std::string key = record.bvid + "|" + std::to_string(record.view_timestamp);
+        if (seenKeys.find(key) != seenKeys.end()) {
+            cJSON_Delete(root);
+            return 1;
+        }
+        seenKeys.insert(key);
+        
+
         // 提取停留时长
         cJSON *progress = cJSON_GetObjectItem(item, "progress");
         if (cJSON_IsNumber(progress)) {
@@ -191,9 +195,11 @@ int getBiliHistory(std::vector<BiliRecord>& records)
 {
     long max = 0, view_at = 0;
     long prev_max = -1, prev_view_at = -1;
+    int pageCount = 0;
     std::string jsonData;
     CURL *curl_handle = nullptr;
     curl_handle = curl_easy_init();
+    std::string filename = ".gitignore/biliHistory";
 
     std::string configContent = readFileToString(".gitignore/config.json");
     cJSON *configRoot = cJSON_Parse(configContent.c_str());
@@ -206,52 +212,80 @@ int getBiliHistory(std::vector<BiliRecord>& records)
 
     // 初始化libcurl全局环境
     curl_global_init(CURL_GLOBAL_ALL);
-    int num = 100;
-    while (num)
+
+    while (true)
     {
         if (fetchBiliPage(max, view_at, bili_cookie, jsonData, curl_handle) != 0) {
             std::cerr << "获取数据错误" << std::endl;
         }
 
-        if (getBiliRecord(max, view_at, jsonData, records) != 0) {
+        int rec = getBiliRecord(max, view_at, jsonData, records);
+        if ( rec == -1) {
             std::cerr << "解析数据错误" << std::endl;
+        } else if (rec == 1) {
+            break;
         }
 
         if (max == prev_max && view_at == prev_view_at) {
             std::cout << "已获取全部历史记录" << std::endl;
             break;
         }
+
+        pageCount++;
+        int pos = (pageCount % 1000) * 50 / 1000;
+        std::cout << "\r["; // 覆盖
+        for (int i = 0; i < 50; i++) {
+            std::cout << (i < pos ? "=" : (i == pos ? ">" : " "));
+        }
+        std::cout << "] " << pageCount << " 页" << std::flush; // 强制输出缓冲区
+
         prev_max = max;
         prev_view_at = view_at;
-        num--;
+
+        if (pageCount == 1000) break;
+
     }
 
+    std::cout << "\r" << "====== complete ======" << " " << pageCount << "页";
+
+    saveRecordsToFile(records, filename);
     curl_easy_cleanup(curl_handle);
     // 清理 libcurl 全局环境
     curl_global_cleanup();
 
-    /*for (const auto&rec: records) {
-            std::cout << " " << rec.title << std::endl;
-    }*/
-
     return 0;
 }
 
-std::vector<BiliRecord> filterRecordsByDate(
-    const std::vector<BiliRecord>& records,
-    const std::string& startDate,
-    const std::string& endDate) 
-{
-    long start = dateToTimestamp(startDate);
-    long end = dateToTimestamp(endDate);
-    // 如果希望包含结束日期全天，取消下面这行的注释
-    end += 24 * 60 * 60 - 1; 
 
-    std::vector<BiliRecord> result;
-    for (const auto& rec : records) {
-        if (rec.view_timestamp >= start && rec.view_timestamp <= end) {
-            result.push_back(rec);
-        }
+void loadRecordsFromFile(const std::string& filename, std::vector<BiliRecord>& records) {
+    std::ifstream file(filename);
+    if (!file.is_open()) return;
+
+    records.clear();
+    std::string line;
+
+    while (std::getline(file, line)) {
+        if (line.empty()) continue;
+
+        BiliRecord rec;
+        size_t pos = 0, next;
+
+        next = line.find('|'); rec.view_timestamp = std::stol(line.substr(pos, next - pos));
+        pos = next + 1;
+        next = line.find('|', pos); rec.title = line.substr(pos, next - pos);
+        pos = next + 1;
+
+        next = line.find('|', pos); rec.tag = line.substr(pos, next - pos);
+        pos = next + 1;
+        next = line.find('|', pos); rec.bvid = line.substr(pos, next - pos);
+        pos = next + 1;
+        next = line.find('|', pos); rec.business = line.substr(pos, next - pos);
+        pos = next + 1;
+        next = line.find('|', pos); rec.progress = std::stoi(line.substr(pos, next - pos));
+        pos = next + 1;
+        rec.duration = std::stoi(line.substr(pos));
+
+
+        records.push_back(rec);
     }
-    return result;
 }
