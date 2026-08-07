@@ -8,6 +8,7 @@
 #include <sstream>
 #include <vector>
 #include <algorithm>
+#include <unordered_set>
 
 std::unordered_set<std::string> seenKeys;
 
@@ -27,14 +28,47 @@ static std::string readFileToString(const std::string& filename) {
 }
 
 static void saveRecordsToFile(const std::vector<BiliRecord> &records, const std::string &filename) {
-    std::ofstream file(filename);
+    // 1. 加载已有记录的键值集合
+    std::unordered_set<std::string> existingKeys;
+    std::ifstream readFile(filename);
+    if (readFile.is_open()) {
+        std::string line;
+        while (std::getline(readFile, line)) {
+            if (line.empty()) continue;
+            // 提取前三个字段作为键值（时间戳|标题|tag）
+            size_t first = line.find('|');
+            if (first == std::string::npos) continue;
+            size_t second = line.find('|', first + 1);
+            if (second == std::string::npos) continue;
+            size_t third = line.find('|', second + 1);
+            if (third == std::string::npos) continue;
+            // 用前三个字段组合成键值
+            std::string key = line.substr(0, third);
+            existingKeys.insert(key);
+        }
+        readFile.close();
+    }
+
+    // 2. 打开文件以追加模式写入
+    std::ofstream file(filename, std::ios::app);
     if (!file.is_open()) return;
 
+    // 3. 遍历新记录，只写入键值不存在的记录
     for (const auto& rec : records) {
         std::string safeTitle = rec.title;
         std::replace(safeTitle.begin(), safeTitle.end(), '|', ';');
         std::string safeTag = rec.tag;
         std::replace(safeTag.begin(), safeTag.end(), '|', ';');    
+        std::string finalTag = rec.tag.empty() ? "未分类" : safeTag;
+
+        // 生成键值（与写入格式完全一致）
+        std::string key = std::to_string(rec.view_timestamp) + "|" + safeTitle + "|" + finalTag;
+        // 如果已存在，跳过
+        if (existingKeys.find(key) != existingKeys.end()) {
+            continue;
+        }
+
+        // 写入新记录
         file << rec.view_timestamp << "|"
              << safeTitle << "|"
              << (rec.tag.empty() ? "未分类" : safeTag) << "|"
@@ -42,6 +76,9 @@ static void saveRecordsToFile(const std::vector<BiliRecord> &records, const std:
              << rec.business << "|"
              << rec.progress << "|"
              << rec.duration << "\n";
+
+        // 将新键值加入集合，避免同一批次内重复写入
+        existingKeys.insert(key);
     }
 }
 
