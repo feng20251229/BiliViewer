@@ -15,12 +15,27 @@ static std::string timestampToDate(long timestamp) {
 }
 
 // 将"YYYY-MM-DD" 格式的字符串转换为时间戳
-static long dateToTimestamp(const std::string& dataStr) {
+static long dateToTimestamp(const std::string& dateStr) {
     std::tm tm = {};
-    std::istringstream ss(dataStr);
+    std::istringstream ss(dateStr);
     ss >> std::get_time(&tm, "%Y-%m-%d");
     std::time_t tt = std::mktime(&tm);
     return static_cast<long>(tt);
+}
+
+static std::string addDays(const std::string& dateStr, int days) {
+    std::tm tm = {};
+    std::istringstream ss(dateStr);
+    ss >> std::get_time(&tm, "%Y-%m-%d");
+
+    std::time_t tt = std::mktime(&tm);
+    tt += days * 24 * 60 * 60;
+
+    std::tm* newTm = std::localtime(&tt);
+
+    char buffer[11];
+    std::strftime(buffer, sizeof(buffer), "%Y-%m-%d", newTm);
+    return std::string(buffer);
 }
 
 // 时间筛选
@@ -45,6 +60,39 @@ std::vector<BiliRecord> filterRecordsByDate(
     return result;
 }
 
+// 获取时长
+int getTimeFromRecords(
+    const std::vector<BiliRecord> &records,
+    const std::string& startDate,
+    const std::string& endDate) 
+{
+    long start = dateToTimestamp(startDate);
+    long end = dateToTimestamp(endDate);
+    
+    if (start == end) {
+        end += 24 * 60 * 60 - 1;
+    }
+
+    int timeSumSecond = 0;
+    for (const auto& rec : records) {
+        if (rec.view_timestamp >= start && rec.view_timestamp <= end) {
+            if (rec.progress == -1) {
+                timeSumSecond += rec.duration;
+                // 看评论
+                timeSumSecond += 10;
+            }
+            else {
+                timeSumSecond += rec.progress;
+                if (rec.progress > rec.duration / 2) 
+                timeSumSecond += 5;
+            }
+        }
+    }
+    
+    return timeSumSecond;
+}
+
+// 整体平均观看完成率
 void analyzeCompletionRate(const std::vector<BiliRecord> &records) {
     double totalProgress = 0;
     int allCount = 0;
@@ -62,4 +110,35 @@ void analyzeCompletionRate(const std::vector<BiliRecord> &records) {
     }
  
     std::cout << "整体平均观看完成率：" << (totalProgress / allCount* 100) << "%" << std::endl;
+}
+
+// 图形化展示一周观看时长+条数
+void displayWeekRecords(const std::vector<BiliRecord> &records, const std::string &startDate, int day) {
+    const int width = 50;
+    
+    for (int i = 0; i < day; i++) {
+        std::string date = addDays(startDate, i);
+        auto rec = filterRecordsByDate(records, date, date);
+
+        int count = rec.size();
+        int time = getTimeFromRecords(rec, date, date) / 60;
+
+        int countLen = (count > 0) ? std::max(1, count * width / 500) : 0;
+        int timeLen = (time > 0) ? std::max(1, time * width / 500) : 0;
+
+        std::cout << date << ": ";
+
+        std::cout << "[";
+        for (int i = 0; i < width; i++) {
+            std::cout << (i < countLen ? "=" : " ");
+        }
+        std::cout << "] " << count << "条" << std::endl;
+
+        std:: cout << std::string (date.length() + 2, ' ') << "[";
+        for (int i = 0; i < width; i++) {
+            std::cout << (i < timeLen ? "#" : " ");
+        }
+        std::cout << "] " << time / 60 << "小时 " << time % 60 << "分钟" << std::endl;
+
+    }
 }

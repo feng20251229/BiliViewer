@@ -13,6 +13,14 @@ std::vector<BiliRecord> filterRecordsByDate(
     const std::string& endDate
 );
 
+int getTimeFromRecords(
+    const std::vector<BiliRecord> &records,
+    const std::string& startDate,
+    const std::string& endDate
+);
+
 void analyzeCompletionRate(const std::vector<BiliRecord> &records);
+
+void displayWeekRecords(const std::vector<BiliRecord>& records, const std::string& startDate, int day);
 
 #endif
