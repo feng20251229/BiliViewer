@@ -325,4 +325,23 @@ void loadRecordsFromFile(const std::string& filename, std::vector<BiliRecord>& r
 
         records.push_back(rec);
     }
+    file.close();
+
+    // 排序历史记录
+    std::sort(records.begin(), records.end(),
+        [](const BiliRecord& a, const BiliRecord& b) {
+            return a.view_timestamp > b.view_timestamp;  
+    });
+
+    // 覆盖保存（用 std::ios::trunc 覆盖原文件）
+    std::ofstream refile(filename, std::ios::trunc);
+    for (const auto& rec : records) {
+        refile << std::to_string(rec.view_timestamp) << "|"
+             << rec.title << "|"
+             << rec.tag << "|"
+             << rec.bvid << "|"
+             << rec.business << "|"
+             << std::to_string(rec.progress) << "|"
+             << std::to_string(rec.duration) << "\n";
+    }
 }

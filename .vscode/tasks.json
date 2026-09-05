@@ -25,16 +25,6 @@
                 "$gcc"
             ],
             "detail": "编译开发"
-        },
-        {
-            "type": "shell",
-            "label": "run main",
-            "command": "${workspaceFolder}/build/main.exe",
-            "dependsOn": [
-                "build main"
-            ],
-            "group": "build",
-            "detail": "运行 main 程序"
         }
     ]
 }
