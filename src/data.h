@@ -1,5 +1,4 @@
-#ifndef DATA_H
-#define DATA_H
+#pragma once
 
 #include <chrono>
 #include <ctime>
@@ -23,4 +22,3 @@ void analyzeCompletionRate(const std::vector<BiliRecord> &records);
 
 void displayWeekRecords(const std::vector<BiliRecord>& records, const std::string& startDate, int day);
 
-#endif

@@ -3,23 +3,49 @@
 #include <cstdlib>
 #include <cstring>
 #include <cjson/cjson.h>
-#include <curl/curl.h>
 #include <fstream>
 #include <sstream>
 #include <vector>
 #include <algorithm>
 #include <unordered_set>
 
-std::unordered_set<std::string> seenKeys;
+Gethist::Gethist(readWay a){
+    if (a == Web) {
+        int getInt = Gethist::getBiliHistory();
+        if (getInt == -1) {
+            std::cout << "构造函数获取网络数据失败" << std::endl;
+        }
+    } else if (a == Data) {
+        loadRecordsFromFile();
+    } else {
+        std::cout << "构造输入错误" << std::endl;
+    }
+}
 
-// 用于存储API响应数据的结构
-struct MemoryStruct {
-    char *memory;
-    size_t size;
-};
+Gethist::~Gethist() { 
+    // 排序历史记录
+    std::sort(this->records.begin(), this->records.end(),
+        [](const BiliRecord& a, const BiliRecord& b) {
+            return a.view_timestamp > b.view_timestamp;  
+    });
+
+    // 覆盖保存（用 std::ios::trunc 覆盖原文件）
+    std::ofstream refile(filename, std::ios::trunc);
+    for (const auto& rec : this->records) {
+        refile << std::to_string(rec.view_timestamp) << "|"
+             << rec.title << "|"
+             << rec.tag << "|"
+             << rec.bvid << "|"
+             << rec.business << "|"
+             << std::to_string(rec.progress) << "|"
+             << std::to_string(rec.duration) << "\n";
+    }
+
+    return; 
+}
 
 // 读取整个文件
-static std::string readFileToString(const std::string& filename) {
+std::string Gethist::readFileToString(const std::string& filename) {
     std::ifstream file(filename);
     if (!file.is_open()) return "";
     std::ostringstream ss;
@@ -27,10 +53,10 @@ static std::string readFileToString(const std::string& filename) {
     return ss.str();
 }
 
-static void saveRecordsToFile(const std::vector<BiliRecord> &records, const std::string &filename) {
+void Gethist::saveRecordsToFile() {
     // 1. 加载已有记录的键值集合
     std::unordered_set<std::string> existingKeys;
-    std::ifstream readFile(filename);
+    std::ifstream readFile(this->filename);
     if (readFile.is_open()) {
         std::string line;
         while (std::getline(readFile, line)) {
@@ -83,7 +109,7 @@ static void saveRecordsToFile(const std::vector<BiliRecord> &records, const std:
 }
 
 // 从API获取数据的回调函数, 追加到MemoryStruct缓冲区
-static size_t WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp) {
+size_t Gethist::WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp) {
     size_t realsize = size * nmemb;
     auto *mem = static_cast<MemoryStruct*>(userp); // C++风格转换
 
@@ -103,12 +129,12 @@ static size_t WriteMemoryCallback(void *contents, size_t size, size_t nmemb, voi
 }
 
 // 获取网页地址
-static std::string getURL(long max, long view_at) {
+std::string Gethist::getURL(long max, long view_at) {
     std::string base_url = "https://api.bilibili.com/x/web-interface/history/cursor";
     return base_url + "?max=" + std::to_string(max) + "&view_at=" + std::to_string(view_at) + "&ps=20";
 }
 
-static int getBiliRecord(long &max, long &view_at, const std::string& jsonData, std::vector<BiliRecord>& records)
+int Gethist::getBiliRecord(long &max, long &view_at, const std::string& jsonData)
 {
     cJSON *root = cJSON_Parse(jsonData.c_str());
     if (root == nullptr) {
@@ -195,7 +221,7 @@ static int getBiliRecord(long &max, long &view_at, const std::string& jsonData, 
 }
 
 // 网络请求
-static int fetchBiliPage(long max, long view_at, const std::string& cookie, std::string& jsonData, CURL *curl_handle)
+int Gethist::fetchBiliPage(long max, long view_at, const std::string& cookie, std::string& jsonData, CURL *curl_handle)
 {
     struct MemoryStruct chunk = {nullptr, 0};
     int ret = -1;
@@ -205,7 +231,7 @@ static int fetchBiliPage(long max, long view_at, const std::string& cookie, std:
 
         curl_easy_setopt(curl_handle, CURLOPT_URL, url.c_str());
         curl_easy_setopt(curl_handle, CURLOPT_COOKIE, cookie.c_str());
-        curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
+        curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, &Gethist::WriteMemoryCallback);
         curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, &chunk);
         curl_easy_setopt(curl_handle, CURLOPT_FOLLOWLOCATION, 1L);
         curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT, 15L);
@@ -228,7 +254,7 @@ static int fetchBiliPage(long max, long view_at, const std::string& cookie, std:
  * 获取B站历史记录
  * @return 0 成功, -1 失败
  */
-int getBiliHistory(std::vector<BiliRecord>& records)
+int Gethist::getBiliHistory()
 {
     long max = 0, view_at = 0;
     long prev_max = -1, prev_view_at = -1;
@@ -236,7 +262,6 @@ int getBiliHistory(std::vector<BiliRecord>& records)
     std::string jsonData;
     CURL *curl_handle = nullptr;
     curl_handle = curl_easy_init();
-    std::string filename = ".gitignore/biliHistory";
 
     std::string configContent = readFileToString(".gitignore/config.json");
     cJSON *configRoot = cJSON_Parse(configContent.c_str());
@@ -256,7 +281,7 @@ int getBiliHistory(std::vector<BiliRecord>& records)
             std::cerr << "获取数据错误" << std::endl;
         }
 
-        int rec = getBiliRecord(max, view_at, jsonData, records);
+        int rec = getBiliRecord(max, view_at, jsonData);
         if ( rec == -1) {
             std::cerr << "解析数据错误" << std::endl;
         } else if (rec == 1) {
@@ -285,7 +310,7 @@ int getBiliHistory(std::vector<BiliRecord>& records)
 
     std::cout << "\r" << "====== complete ======" << " " << pageCount << "页";
 
-    saveRecordsToFile(records, filename);
+    saveRecordsToFile();
     curl_easy_cleanup(curl_handle);
     // 清理 libcurl 全局环境
     curl_global_cleanup();
@@ -294,11 +319,11 @@ int getBiliHistory(std::vector<BiliRecord>& records)
 }
 
 
-void loadRecordsFromFile(const std::string& filename, std::vector<BiliRecord>& records) {
-    std::ifstream file(filename);
+void Gethist::loadRecordsFromFile() {
+    std::ifstream file(this->filename);
     if (!file.is_open()) return;
 
-    records.clear();
+    this->records.clear();
     std::string line;
 
     while (std::getline(file, line)) {
@@ -323,25 +348,7 @@ void loadRecordsFromFile(const std::string& filename, std::vector<BiliRecord>& r
         rec.duration = std::stoi(line.substr(pos));
 
 
-        records.push_back(rec);
+        this->records.push_back(rec);
     }
     file.close();
-
-    // 排序历史记录
-    std::sort(records.begin(), records.end(),
-        [](const BiliRecord& a, const BiliRecord& b) {
-            return a.view_timestamp > b.view_timestamp;  
-    });
-
-    // 覆盖保存（用 std::ios::trunc 覆盖原文件）
-    std::ofstream refile(filename, std::ios::trunc);
-    for (const auto& rec : records) {
-        refile << std::to_string(rec.view_timestamp) << "|"
-             << rec.title << "|"
-             << rec.tag << "|"
-             << rec.bvid << "|"
-             << rec.business << "|"
-             << std::to_string(rec.progress) << "|"
-             << std::to_string(rec.duration) << "\n";
-    }
 }

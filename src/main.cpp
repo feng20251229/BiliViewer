@@ -4,17 +4,6 @@
 
 std::vector<BiliRecord> myRecords;
 
-void getRecordsFromWeb() {
-    int result = getBiliHistory(myRecords);
-    if (result != 0) {
-        std::cerr << "获取数据失败" << std::endl;
-    }
-}
-
-void getRecordsFromData() {
-    std::string filename = ".gitignore/biliHistory";
-    loadRecordsFromFile(filename, myRecords);
-}
 
 void getTag() {
     std::unordered_set<std::string> uniqueTags;
@@ -30,7 +19,7 @@ void getTag() {
 
 void getTime(std::string &startDate, std::string &endDate) {
     int timeSum = getTimeFromRecords(myRecords, startDate, endDate);
-    std::cout << "从 " << startDate << " 到" << endDate << " 共看时长为" << timeSum % 60 << std::endl;
+    std::cout << "从 " << startDate << " 到" << endDate << " 共看时长为" << timeSum / 60 << std::endl;
 }
 
 // 返回选定时间段内历史记录
@@ -40,32 +29,12 @@ std::vector<BiliRecord> selectRecordsFromDate(std::string &startDate, std::strin
     return records;
 }
 
-int main(int argc, char *argv[])
+int main()
 {
-    std::vector<BiliRecord> selectRecords;
-
-    if (argc == 2)
-    {
-        // 通过网站访问获取历史记录
-        if (strcmp(argv[1], "Web") == 0)
-            getRecordsFromWeb();
-        return 0;
-    }
-    else if (argc == 3) 
-    {
-        // 通过储存数据获取历史记录
-        if (strcmp(argv[1], "Data") == 0)
-        {
-            getRecordsFromData();
-        }
-        else
-        {
-            std::cout << "指令错误" << std::endl;
-            return -1;
-        }
-
-    }
-
+    Gethist A = Gethist(Web);
+    myRecords = A.loadrecords();
+    
+    /*
     std::string startDate = "2026-08-12";
     std::string endDate = "2026-08-12";
     
@@ -84,9 +53,10 @@ int main(int argc, char *argv[])
     } else {
         std::cout << "指令错误" << std::endl;
         return -1;
-    }
+    }*/
 
     return 0;
 } 
 
 //文化趋势追踪
+//自动获取cookie
