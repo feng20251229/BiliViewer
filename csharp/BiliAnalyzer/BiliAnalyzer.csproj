@@ -1,0 +1,62 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <PlatformTarget>x64</PlatformTarget>
+
+    <!-- 发布参数：以后 dotnet publish 不用再敲一长串 -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+
+    <!-- 输出目录调整（可选） -->
+    <AppendTargetFrameworkToOutputPath>true</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+  </PropertyGroup>
+
+  <!-- ============================================================ -->
+  <!-- 自动拷贝所有依赖到输出目录（Debug / Release / publish 都生效）-->
+  <!-- ============================================================ -->
+  <ItemGroup>
+
+    <!-- 1. C++ 主 DLL（从 CMake 输出目录拿） -->
+    <None Include="..\..\cpp-build\BiliNative.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>BiliNative.dll</Link>
+    </None>
+
+    <!-- 2. MinGW 运行依赖 -->
+    <None Include="E:\soft intallation\MSYS2\mingw64\bin\libcurl-4.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>libcurl-4.dll</Link>
+    </None>
+    <None Include="E:\soft intallation\MSYS2\mingw64\bin\libcjson-1.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>libcjson-1.dll</Link>
+    </None>
+    <None Include="E:\soft intallation\MSYS2\mingw64\bin\libgcc_s_seh-1.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>libgcc_s_seh-1.dll</Link>
+    </None>
+    <None Include="E:\soft intallation\MSYS2\mingw64\bin\libstdc++-6.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>libstdc++-6.dll</Link>
+    </None>
+    <None Include="E:\soft intallation\MSYS2\mingw64\bin\libwinpthread-1.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>libwinpthread-1.dll</Link>
+    </None>
+
+    <!-- 3. 运行时数据（config.json + biliHistory） -->
+    <None Include="..\..\data\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>data\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </None>
+
+  </ItemGroup>
+
+</Project>

@@ -1,38 +1,10 @@
 #include "connect.h"
 #include "data.h"
-#include <string.h>
-
-std::vector<BiliRecord> myRecords;
-
-
-void getTag() {
-    std::unordered_set<std::string> uniqueTags;
-
-    for (const auto &rec : myRecords) {
-        uniqueTags.insert(rec.tag);
-    }
-
-    for (const auto &tag : uniqueTags) {
-        std::cout << " " << tag;
-    }
-}
-
-void getTime(std::string &startDate, std::string &endDate) {
-    int timeSum = getTimeFromRecords(myRecords, startDate, endDate);
-    std::cout << "从 " << startDate << " 到" << endDate << " 共看时长为" << timeSum / 60 << std::endl;
-}
-
-// 返回选定时间段内历史记录
-std::vector<BiliRecord> selectRecordsFromDate(std::string &startDate, std::string &endDate) {
-    auto records = filterRecordsByDate(myRecords, startDate, endDate);
-    std::cout << "观看量：" << records.size() << " 条" << std::endl;
-    return records;
-}
 
 int main()
 {
     Gethist A = Gethist(Web);
-    myRecords = A.loadrecords();
+    Danalysis B = Danalysis(A.loadrecords());
     
     /*
     std::string startDate = "2026-08-12";

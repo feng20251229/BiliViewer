@@ -1,0 +1,31 @@
+# ===== 编译产物 =====
+build/
+cpp-build/
+
+# ===== C++ 编译产物 =====
+*.o
+*.obj
+*.exe
+*.dll
+*.pdb
+*.log
+
+# ===== C# 编译产物 =====
+bin/
+obj/
+csharp/**/bin/
+csharp/**/obj/
+
+# ===== 敏感数据 =====
+data/config.json
+data/biliHistory
+
+# ===== VS Code =====
+.vscode/
+
+# ===== 其它 =====
+*.log
+*.user
+*.suo
+*.pdb
+*.zip

@@ -23,6 +23,7 @@ Gethist::Gethist(readWay a){
 }
 
 Gethist::~Gethist() { 
+    if (!saveOnDestruct) return;
     // 排序历史记录
     std::sort(this->records.begin(), this->records.end(),
         [](const BiliRecord& a, const BiliRecord& b) {
@@ -32,16 +33,20 @@ Gethist::~Gethist() {
     // 覆盖保存（用 std::ios::trunc 覆盖原文件）
     std::ofstream refile(filename, std::ios::trunc);
     for (const auto& rec : this->records) {
-        refile << std::to_string(rec.view_timestamp) << "|"
-             << rec.title << "|"
-             << rec.tag << "|"
+        // 关键：替换掉 |
+        std::string safeTitle = rec.title;
+        std::replace(safeTitle.begin(), safeTitle.end(), '|', ';');
+        std::string safeTag = rec.tag;
+        std::replace(safeTag.begin(), safeTag.end(), '|', ';');
+
+        refile << rec.view_timestamp << "|"
+             << safeTitle << "|"
+             << safeTag << "|"
              << rec.bvid << "|"
              << rec.business << "|"
-             << std::to_string(rec.progress) << "|"
-             << std::to_string(rec.duration) << "\n";
+             << rec.progress << "|"
+             << rec.duration << "\n";
     }
-
-    return; 
 }
 
 // 读取整个文件
@@ -106,6 +111,7 @@ void Gethist::saveRecordsToFile() {
         // 将新键值加入集合，避免同一批次内重复写入
         existingKeys.insert(key);
     }
+    saveOnDestruct = true;
 }
 
 // 从API获取数据的回调函数, 追加到MemoryStruct缓冲区
@@ -263,7 +269,7 @@ int Gethist::getBiliHistory()
     CURL *curl_handle = nullptr;
     curl_handle = curl_easy_init();
 
-    std::string configContent = readFileToString(".gitignore/config.json");
+    std::string configContent = readFileToString("data/config.json");
     cJSON *configRoot = cJSON_Parse(configContent.c_str());
     if (configRoot == nullptr) {
         std::cerr << "解析配置文件失败" << std::endl;
@@ -321,34 +327,68 @@ int Gethist::getBiliHistory()
 
 void Gethist::loadRecordsFromFile() {
     std::ifstream file(this->filename);
-    if (!file.is_open()) return;
+    if (!file.is_open()) {
+        std::cout << ">>> 文件打开失败: " << this->filename << std::endl;
+        return;
+    }
 
     this->records.clear();
     std::string line;
+    int lineNo = 0;
+    int good = 0;
+    int bad = 0;
 
     while (std::getline(file, line)) {
+        lineNo++;
         if (line.empty()) continue;
 
-        BiliRecord rec;
-        size_t pos = 0, next;
+        try {
+            BiliRecord rec;
+            size_t pos = 0, next;
 
-        next = line.find('|'); rec.view_timestamp = std::stol(line.substr(pos, next - pos));
-        pos = next + 1;
-        next = line.find('|', pos); rec.title = line.substr(pos, next - pos);
-        pos = next + 1;
+            next = line.find('|');
+            if (next == std::string::npos) { bad++; continue; }
+            rec.view_timestamp = std::stol(line.substr(pos, next - pos));
+            pos = next + 1;
 
-        next = line.find('|', pos); rec.tag = line.substr(pos, next - pos);
-        pos = next + 1;
-        next = line.find('|', pos); rec.bvid = line.substr(pos, next - pos);
-        pos = next + 1;
-        next = line.find('|', pos); rec.business = line.substr(pos, next - pos);
-        pos = next + 1;
-        next = line.find('|', pos); rec.progress = std::stoi(line.substr(pos, next - pos));
-        pos = next + 1;
-        rec.duration = std::stoi(line.substr(pos));
+            next = line.find('|', pos);
+            if (next == std::string::npos) { bad++; continue; }
+            rec.title = line.substr(pos, next - pos);
+            pos = next + 1;
 
+            next = line.find('|', pos);
+            if (next == std::string::npos) { bad++; continue; }
+            rec.tag = line.substr(pos, next - pos);
+            pos = next + 1;
 
-        this->records.push_back(rec);
+            next = line.find('|', pos);
+            if (next == std::string::npos) { bad++; continue; }
+            rec.bvid = line.substr(pos, next - pos);
+            pos = next + 1;
+
+            next = line.find('|', pos);
+            if (next == std::string::npos) { bad++; continue; }
+            rec.business = line.substr(pos, next - pos);
+            pos = next + 1;
+
+            next = line.find('|', pos);
+            if (next == std::string::npos) { bad++; continue; }
+            rec.progress = std::stoi(line.substr(pos, next - pos));
+            pos = next + 1;
+
+            rec.duration = std::stoi(line.substr(pos));
+
+            this->records.push_back(rec);
+            good++;
+        }
+        catch (const std::exception& e) {
+            std::cout << ">>> 第 " << lineNo << " 行坏: " << e.what() << std::endl;
+            bad++;
+            continue;
+        }
     }
+
     file.close();
+    std::cout << ">>> 读入 " << good << " 条，跳过 " << bad
+              << " 条，共 " << lineNo << " 行" << std::endl;
 }

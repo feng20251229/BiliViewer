@@ -1,5 +1,5 @@
 {
-    "version": "2.0.0", // 配置文件版本，固定为1.0.0
+    "version": "2.0.0",
     "tasks": [
         {
             "type": "shell",
@@ -17,14 +17,32 @@
                 "-lcurl",
                 "-lcjson"
             ],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            },
-            "problemMatcher": [
-                "$gcc"
+            "group": { "kind": "build", "isDefault": true },
+            "problemMatcher": ["$gcc"],
+            "detail": "编译命令行版 main.exe"
+        },
+        {
+            "type": "shell",
+            "label": "build dll",
+            "command": "g++",
+            "args": [
+                "-shared",
+                "-g",
+                "-std=c++17",
+                "-DBILI_EXPORTS",
+                "${workspaceFolder}/src/connect.cpp",
+                "${workspaceFolder}/src/data.cpp",
+                "${workspaceFolder}/src/bili_export.cpp",
+                "-o",
+                "${workspaceFolder}/build/BiliNative.dll",
+                "-IF:\\msys2\\mingw64\\include",
+                "-LF:\\msys2\\mingw64\\lib",
+                "-lcurl",
+                "-lcjson"
             ],
-            "detail": "编译开发"
+            "group": { "kind": "build", "isDefault": false },
+            "problemMatcher": ["$gcc"],
+            "detail": "编译 C# 用的 BiliNative.dll"
         }
     ]
 }

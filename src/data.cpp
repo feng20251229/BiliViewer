@@ -1,7 +1,9 @@
 #include "data.h"
 
+Danalysis::~Danalysis() {return; }
+
 // 将Unix时间戳转换为 "YYYY-MM-DD" 格式的字符串
-static std::string timestampToDate(long timestamp) {
+std::string Danalysis::timestampToDate(long timestamp) {
     using namespace std::chrono;
     // 将时间戳转化为时间点
     system_clock::time_point tp = system_clock::from_time_t(timestamp);
@@ -15,7 +17,7 @@ static std::string timestampToDate(long timestamp) {
 }
 
 // 将"YYYY-MM-DD" 格式的字符串转换为时间戳
-static long dateToTimestamp(const std::string& dateStr) {
+long Danalysis::dateToTimestamp(const std::string& dateStr) {
     std::tm tm = {};
     std::istringstream ss(dateStr);
     ss >> std::get_time(&tm, "%Y-%m-%d");
@@ -23,7 +25,7 @@ static long dateToTimestamp(const std::string& dateStr) {
     return static_cast<long>(tt);
 }
 
-static std::string addDays(const std::string& dateStr, int days) {
+std::string Danalysis::addDays(const std::string& dateStr, int days) {
     std::tm tm = {};
     std::istringstream ss(dateStr);
     ss >> std::get_time(&tm, "%Y-%m-%d");
@@ -39,20 +41,17 @@ static std::string addDays(const std::string& dateStr, int days) {
 }
 
 // 时间筛选
-std::vector<BiliRecord> filterRecordsByDate(
-    const std::vector<BiliRecord>& records,
-    const std::string& startDate,
-    const std::string& endDate) 
+std::vector<BiliRecord> Danalysis::filterRecordsByDate(const std::string& startDate, const std::string& endDate) 
 {
-    long start = dateToTimestamp(startDate);
-    long end = dateToTimestamp(endDate);
+    long start = Danalysis::dateToTimestamp(startDate);
+    long end = Danalysis::dateToTimestamp(endDate);
     // 如果希望包含结束日期全天，取消下面这行的注释
     if (start == end) {
         end += 24 * 60 * 60 - 1; 
     }
 
     std::vector<BiliRecord> result;
-    for (const auto& rec : records) {
+    for (const auto& rec : this->records) {
         if (rec.view_timestamp >= start && rec.view_timestamp <= end) {
             result.push_back(rec);
         }
@@ -61,20 +60,17 @@ std::vector<BiliRecord> filterRecordsByDate(
 }
 
 // 获取时长
-int getTimeFromRecords(
-    const std::vector<BiliRecord> &records,
-    const std::string& startDate,
-    const std::string& endDate) 
+int Danalysis::getTimeFromRecords(const std::string& startDate, const std::string& endDate) 
 {
-    long start = dateToTimestamp(startDate);
-    long end = dateToTimestamp(endDate);
+    long start = Danalysis::dateToTimestamp(startDate);
+    long end = Danalysis::dateToTimestamp(endDate);
     
     if (start == end) {
         end += 24 * 60 * 60 - 1;
     }
 
     int timeSumSecond = 0;
-    for (const auto& rec : records) {
+    for (const auto& rec : this->records) {
         if (rec.view_timestamp >= start && rec.view_timestamp <= end) {
             if (rec.progress == -1) {
                 timeSumSecond += rec.duration;
@@ -93,11 +89,11 @@ int getTimeFromRecords(
 }
 
 // 整体平均观看完成率
-void analyzeCompletionRate(const std::vector<BiliRecord> &records) {
+void Danalysis::analyzeCompletionRate() {
     double totalProgress = 0;
     int allCount = 0;
     
-    for (const auto &rec : records) {
+    for (const auto &rec : this->records) {
         if (rec.duration <= 0) continue;
         if (rec.progress == -1) {
             totalProgress += 1;
@@ -113,15 +109,15 @@ void analyzeCompletionRate(const std::vector<BiliRecord> &records) {
 }
 
 // 图形化展示一周观看时长+条数
-void displayWeekRecords(const std::vector<BiliRecord> &records, const std::string &startDate, int day) {
+void Danalysis::displayWeekRecords(const std::string &startDate, int day) {
     const int width = 50;
     
     for (int i = 0; i < day; i++) {
-        std::string date = addDays(startDate, i);
-        auto rec = filterRecordsByDate(records, date, date);
+        std::string date = Danalysis::addDays(startDate, i);
+        auto rec = Danalysis::filterRecordsByDate(date, date);
 
         int count = rec.size();
-        int time = getTimeFromRecords(rec, date, date) / 60;
+        int time = Danalysis::getTimeFromRecords(date, date) / 60;
 
         int countLen = (count > 0) ? std::max(1, count * width / 500) : 0;
         int timeLen = (time > 0) ? std::max(1, time * width / 500) : 0;

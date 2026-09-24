@@ -31,6 +31,8 @@ enum readWay{
 class Gethist
 {
 public:
+    bool saveOnDestruct = false;
+
     Gethist(readWay way);
     ~Gethist();
 
@@ -49,6 +51,6 @@ private:
     void loadRecordsFromFile();
 
     std::vector<BiliRecord> records;
-    std::string filename = ".gitignore/biliHistory";
+    std::string filename = "data/biliHistory";
     std::unordered_set<std::string> seenKeys;
 };
