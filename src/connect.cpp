@@ -115,7 +115,7 @@ void Gethist::saveRecordsToFile() {
 }
 
 // 从API获取数据的回调函数, 追加到MemoryStruct缓冲区
-size_t Gethist::WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp) {
+size_t Gethist:: WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp) {
     size_t realsize = size * nmemb;
     auto *mem = static_cast<MemoryStruct*>(userp); // C++风格转换
 
@@ -142,16 +142,21 @@ std::string Gethist::getURL(long max, long view_at) {
 
 int Gethist::getBiliRecord(long &max, long &view_at, const std::string& jsonData)
 {
-    cJSON *root = cJSON_Parse(jsonData.c_str());
-    if (root == nullptr) {
+    // 采用RAII管理cJSON数据
+    CJsonManager root(cJSON_Parse(jsonData.c_str()));
+    if (!root) {
         std::cerr << "JSON解析失败" << std::endl;
         return -1;
     } 
+    // 使用匿名函数解决返回错误
+    auto getItem = [](cJSON* obj, const char* key) -> cJSON* {
+        return obj ? cJSON_GetObjectItem(obj, key) : nullptr;
+    };
 
-    cJSON *data = cJSON_GetObjectItem(root, "data");
+    cJSON *data = cJSON_GetObjectItem(root.get(), "data");
     // 获取max, view_at
-    cJSON *cursor = cJSON_GetObjectItem(data, "cursor");
-    cJSON *bmax = cJSON_GetObjectItem(cursor, "max");
+    cJSON *cursor = getItem(data, "cursor");
+    cJSON *bmax = getItem(cursor, "max");
     if (cJSON_IsNumber(bmax)) {
         max = bmax->valueint;
     }
@@ -196,7 +201,6 @@ int Gethist::getBiliRecord(long &max, long &view_at, const std::string& jsonData
         
         std::string key = record.bvid + "|" + std::to_string(record.view_timestamp);
         if (seenKeys.find(key) != seenKeys.end()) {
-            cJSON_Delete(root);
             return 1;
         }
         seenKeys.insert(key);
@@ -225,7 +229,6 @@ int Gethist::getBiliRecord(long &max, long &view_at, const std::string& jsonData
     
     return 0;
 }
-
 // 网络请求
 int Gethist::fetchBiliPage(long max, long view_at, const std::string& cookie, std::string& jsonData, CURL *curl_handle)
 {
@@ -267,7 +270,7 @@ int Gethist::getBiliHistory()
     int pageCount = 0;
     std::string jsonData;
     CURL *curl_handle = nullptr;
-    curl_handle = curl_easy_init();
+    
 
     std::string configContent = readFileToString("data/config.json");
     cJSON *configRoot = cJSON_Parse(configContent.c_str());
@@ -280,6 +283,7 @@ int Gethist::getBiliHistory()
 
     // 初始化libcurl全局环境
     curl_global_init(CURL_GLOBAL_ALL);
+    curl_handle = curl_easy_init();
 
     while (true)
     {
@@ -392,3 +396,7 @@ void Gethist::loadRecordsFromFile() {
     std::cout << ">>> 读入 " << good << " 条，跳过 " << bad
               << " 条，共 " << lineNo << " 行" << std::endl;
 }
+// 先curl接受数据
+// 然后解析数据，重组织数据
+// 最后应用数据
+// 那么该怎么组织函数？

@@ -7,16 +7,16 @@ namespace BiliAnalyzer
     public class MainForm : Form
     {
         // ---- 控件 ----
-        private Button btnLoadWeb;
-        private Button btnLoadFile;
-        private DateTimePicker dtStart;
-        private DateTimePicker dtEnd;
-        private Button btnFilter;
-        private Button btnTime;
-        private Button btnRate;
-        private Button btnWeek;
-        private DataGridView grid;
-        private TextBox txtOutput;
+        private Button btnLoadWeb = null!;
+        private Button btnLoadFile = null!;
+        private DateTimePicker dtStart = null!;
+        private DateTimePicker dtEnd = null!;
+        private Button btnFilter = null!;
+        private Button btnTime = null!;
+        private Button btnRate = null!;
+        private Button btnWeek = null!;
+        private DataGridView grid = null!;
+        private TextBox txtOutput = null!;
 
         public MainForm()
         {
@@ -116,6 +116,8 @@ namespace BiliAnalyzer
             {
                 try { BiliNative.Bili_Shutdown(); } catch { }
             };
+
+
         }
 
         private Button MakeButton(string text, int left, int top, int width, EventHandler handler)
@@ -139,6 +141,39 @@ namespace BiliAnalyzer
         // 从网络抓取
         private void BtnLoadWeb_Click(object? sender, EventArgs e)
         {
+            // 1. 读已保存的 Cookie
+            string? cookie = CookieManager.LoadCookie();
+            bool remembered = CookieManager.IsRemembered();
+
+            // 2. 没有 Cookie，或用户没勾"记住我"，弹登录
+            if (string.IsNullOrEmpty(cookie) || !remembered)
+            {
+                using var loginForm = new LoginForm();
+                if (loginForm.ShowDialog() != DialogResult.OK)
+                {
+                    AppendOutput("用户取消登录");
+                    return;
+                }
+
+                cookie = loginForm.ResultCookie;
+                if (string.IsNullOrEmpty(cookie))
+                {
+                    AppendOutput("登录失败，没拿到 Cookie");
+                    return;
+                }
+
+                // 3. 保存 Cookie 和"记住我"
+                CookieManager.SaveCookie(cookie);
+                CookieManager.SetRemembered(loginForm.RememberMe);
+
+                AppendOutput("登录成功，Cookie 已保存");
+            }
+            else
+            {
+                AppendOutput("使用已保存的 Cookie");
+            }
+
+            // 4. 开始抓取
             LoadData(1);
         }
 
@@ -288,6 +323,20 @@ namespace BiliAnalyzer
             btnTime.Enabled = !busy;
             btnRate.Enabled = !busy;
             if (msg != null) AppendOutput(msg);
+        }
+
+        private void TestLogin()
+        {
+            using var loginForm = new LoginForm();
+            if (loginForm.ShowDialog() == DialogResult.OK)
+            {
+                MessageBox.Show($"Cookie: {loginForm.ResultCookie}");
+                MessageBox.Show($"记住我: {loginForm.RememberMe}");
+            }
+            else
+            {
+                MessageBox.Show("用户取消");
+            }
         }
     }
 }

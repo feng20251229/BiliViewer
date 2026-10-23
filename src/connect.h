@@ -5,17 +5,18 @@
 #include <vector>
 #include <unordered_set>
 #include <curl/curl.h>
+#include <cjson/cjson.h>
 
-typedef struct {
+struct BiliRecord{
     std::string title;          // 视频标题
     std::string bvid;           // 视频ID
     std::string business;       // 模式（archive视频、live直播、pgc电影）
     long view_timestamp;        // 观看时间戳
     int progress;               // 停留时长
     int duration;               // 总时长
-    int live_status;            // 直播状态（默认0）
+    int live_status;            // 直播状态（默认0） //预留
     std::string tag;            // 分区标签
-} BiliRecord;
+};
 
 // 用于存储API响应数据的结构
 struct MemoryStruct {
@@ -53,4 +54,20 @@ private:
     std::vector<BiliRecord> records;
     std::string filename = "data/biliHistory";
     std::unordered_set<std::string> seenKeys;
+};
+
+class CJsonManager
+{
+public:
+    explicit CJsonManager(cJSON* p) : p_(p) {}
+    ~CJsonManager() {cJSON_Delete(p_);}
+
+    CJsonManager(const CJsonManager&) = delete;
+    CJsonManager& operator=(const CJsonManager&) = delete;
+
+    cJSON* get() {return p_;}
+    explicit operator bool() const {return p_ != nullptr;}
+
+private:
+    cJSON *p_;
 };
