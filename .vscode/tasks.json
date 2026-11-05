@@ -17,32 +17,24 @@
                 "-lcurl",
                 "-lcjson"
             ],
-            "group": { "kind": "build", "isDefault": true },
-            "problemMatcher": ["$gcc"],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
             "detail": "编译命令行版 main.exe"
         },
         {
             "type": "shell",
-            "label": "build dll",
-            "command": "g++",
-            "args": [
-                "-shared",
-                "-g",
-                "-std=c++17",
-                "-DBILI_EXPORTS",
-                "${workspaceFolder}/src/connect.cpp",
-                "${workspaceFolder}/src/data.cpp",
-                "${workspaceFolder}/src/bili_export.cpp",
-                "-o",
-                "${workspaceFolder}/build/BiliNative.dll",
-                "-IF:\\msys2\\mingw64\\include",
-                "-LF:\\msys2\\mingw64\\lib",
-                "-lcurl",
-                "-lcjson"
+            "label": "run main",
+            "command": "${workspaceFolder}/build/main.exe",
+            "dependsOn": [
+                "build main"
             ],
-            "group": { "kind": "build", "isDefault": false },
-            "problemMatcher": ["$gcc"],
-            "detail": "编译 C# 用的 BiliNative.dll"
+            "group": "build",
+            "detail": "运行 main 程序"
         }
     ]
 }
