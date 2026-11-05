@@ -1,11 +1,15 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include <QMessageBox>
+#include "../connect.h"
 
 void MainWindow::fun1(bool check){
-    qDebug() << "来是come\n";
+    Gethist A = Gethist(Data);
+    QMessageBox::information(this, "提示", "来是come");
 }
+
 void MainWindow::fun2(bool check) {
-    qDebug() << "去是go\n";
+    QMessageBox::information(this, "提示", "去是go");
 }
 
 MainWindow::MainWindow(QWidget *parent)

@@ -11,6 +11,7 @@ qt_add_executable(qt
     mainwindow.cpp
     mainwindow.h
     mainwindow.ui
+    ../connect.cpp
 )
 
 target_link_libraries(qt
@@ -18,7 +19,21 @@ target_link_libraries(qt
         Qt::Core
         Qt::Widgets
 )
+# 1. 告诉编译器头文件在哪
+target_include_directories(qt PRIVATE
+    "E:/soft intallation/MSYS2/mingw64/include"
+)
 
+# 2. 告诉链接器库文件在哪
+target_link_directories(qt PRIVATE
+    "E:/soft intallation/MSYS2/mingw64/lib"
+)
+
+# 3. 链接具体库的名字（不用写 libcurl.dll，写 curl 就行）
+target_link_libraries(qt PRIVATE
+    curl
+    cjson
+)
 install(TARGETS qt
     BUNDLE  DESTINATION .
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
